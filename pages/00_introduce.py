@@ -19,7 +19,7 @@ if st.session_state.step == 0:
 
     if st.button("게임 시작 ▶️"):
         st.session_state.step = 1
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------------------------------
 # STEP 1: 이름
@@ -33,7 +33,7 @@ elif st.session_state.step == 1:
         if name:
             st.session_state.profile["이름"] = name
             st.session_state.step = 2
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.warning("이름을 입력해주세요!")
 
@@ -51,7 +51,7 @@ elif st.session_state.step == 2:
     if st.button("다음"):
         st.session_state.profile["성격"] = personality
         st.session_state.step = 3
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------------------------------
 # STEP 3: 관심사
@@ -67,7 +67,7 @@ elif st.session_state.step == 3:
     if st.button("다음"):
         st.session_state.profile["관심사"] = interest
         st.session_state.step = 4
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------------------------------
 # STEP 4: 강점
@@ -83,7 +83,7 @@ elif st.session_state.step == 4:
     if st.button("결과 보기"):
         st.session_state.profile["강점"] = ", ".join(strength)
         st.session_state.step = 5
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------------------------------
 # STEP 5: 결과
@@ -111,4 +111,4 @@ elif st.session_state.step == 5:
 
     if st.button("🔄 다시 하기"):
         st.session_state.clear()
-        st.experimental_rerun()
+        st.rerun()
