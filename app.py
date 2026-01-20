@@ -1,85 +1,49 @@
 import streamlit as st
 import pandas as pd
+import requests
 
-# 페이지 설정
 st.set_page_config(page_title="26년 주식시장 분석", layout="wide")
-
-# 제목
 st.title("📈 26년 주식시장 분석")
 
-# -----------------------------
-# 더미 주식 데이터
-# -----------------------------
-data = {
-    "종목": ["삼성전자", "SK하이닉스", "네이버", "카카오", "현대차", "LG에너지솔루션"],
-    "25년상승률(%)": [45, 60, 30, 25, 40, 50],
-    "26년상승률(%)": [120, 180, 110, 95, 140, 210],
-    "아이콘": ["📱", "💾", "🌐", "💬", "🚗", "🔋"]
-}
+# 1. Ticker 입력란
+tickers = st.text_input("종목 코드 입력 (쉼표 구분, 예: AAPL,MSFT,TSLA)", "AAPL,MSFT,TSLA")
+ticker_list = [t.strip() for t in tickers.split(",")]
 
-df = pd.DataFrame(data)
+# 2. 수익률 드롭다운
+target = st.selectbox("🎯 목표 수익률 (%)", list(range(20, 210, 10)))
 
-# -----------------------------
-# 수익률 선택
-# -----------------------------
-st.subheader("🎯 원하는 수익률 선택")
+# fetch function
+def fetch_history(ticker):
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=3y&interval=1mo"
+    res = requests.get(url).json()
+    try:
+        prices = res["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"]
+        dates = [x["fmt"] for x in res["chart"]["result"][0]["timestamp"]]
+        df = pd.DataFrame({"date": dates, "adjclose": prices})
+        df["year"] = pd.to_datetime(df["date"]).dt.year
+        return df
+    except:
+        return pd.DataFrame()
 
-target_return = st.selectbox(
-    "목표 수익률",
-    ["100% 이상", "150% 이상", "200% 이상"]
-)
+# 3. 수익률 계산
+results = []
+for t in ticker_list:
+    df = fetch_history(t)
+    if df.empty:
+        continue
 
-rate_map = {
-    "100% 이상": 100,
-    "150% 이상": 150,
-    "200% 이상": 200
-}
+    # 연도별 종가만 추림
+    yearly = df.groupby("year").last()["adjclose"]
+    if 2024 in yearly and 2025 in yearly and 2026 in yearly:
+        r24 = (yearly[2025] - yearly[2024]) / yearly[2024] * 100
+        r25 = (yearly[2026] - yearly[2025]) / yearly[2025] * 100
+        r26 = (yearly[2026] - yearly[2025]) / yearly[2025] * 100
+        if r26 >= target:
+            results.append((t, r24, r25, r26))
 
-# -----------------------------
-# 조건 필터링
-# -----------------------------
-filtered_df = df[
-    (df["25년상승률(%)"] > 0) &
-    (df["26년상승률(%)"] >= rate_map[target_return])
-]
+# 출력
+df_out = pd.DataFrame(results, columns=["Ticker", "24년", "25년", "26년"])
+df_out = df_out.sort_values(by="26년", ascending=False).head(5)
 
-filtered_df = filtered_df.sort_values(
-    by="26년상승률(%)", ascending=False
-).head(5)
-
-# -----------------------------
-# 추천 종목 출력
-# -----------------------------
-st.subheader("⭐ 상위 5개 추천 종목")
-
-for _, row in filtered_df.iterrows():
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown(
-            f"### {row['종목']}\n"
-            f"- 25년 상승률: **{row['25년상승률(%)']}%**\n"
-            f"- 26년 상승률: **{row['26년상승률(%)']}%**"
-        )
-    with col2:
-        st.markdown(
-            f"<div style='font-size:60px; text-align:center'>{row['아이콘']}</div>",
-            unsafe_allow_html=True
-        )
-
-# -----------------------------
-# 뉴스 추천
-# -----------------------------
-st.divider()
-st.subheader("📰 오늘의 관련 증시 뉴스")
-
-news_data = {
-    "삼성전자": "AI 반도체 수요 급증으로 실적 전망 상향",
-    "SK하이닉스": "HBM 공급 부족으로 주가 강세 지속",
-    "네이버": "AI 검색 고도화로 글로벌 확장 기대",
-    "현대차": "전기차 판매량 사상 최대 기록",
-    "LG에너지솔루션": "북미 배터리 공급 계약 확대"
-}
-
-for stock in filtered_df["종목"]:
-    if stock in news_data:
-        st.markdown(f"- **{stock}**: {news_data[stock]}")
+st.subheader("⭐ 추천 종목")
+st.dataframe(df_out)
