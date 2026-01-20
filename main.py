@@ -3,10 +3,6 @@ st.title("*류지성의 첫 웹앱*!")
 st.write('안녕하세요! 반갑습니다. :)')
 st.write('초록색버튼따라가기!')
 st.button("버튼누르기")
-def main():
-    st.title("비밀번호 입력창 토글 예제")
-
-    # 1. 세션 상태 초기화 (버튼 상태를 기억하기 위함)
     if 'show_input' not in st.session_state:
         st.session_state['show_input'] = False
 
