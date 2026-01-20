@@ -5,3 +5,7 @@ st.write('초록색버튼따라가기!')
 #사용자로부터 텍스트 인풋 받기
 password = st.text_input("버튼")
 if st.button("확인")
+if password== "1234" :
+  st.wright("성공")
+  
+
