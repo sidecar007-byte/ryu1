@@ -1,60 +1,64 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
 
 st.set_page_config(layout="wide")
 st.title("📈 26년 주식시장 분석")
 
-# ------------------------------------
-# 실시간 시세 함수
-# ------------------------------------
-@st.cache_data(ttl=300)
-def get_realtime_price(ticker):
-    try:
-        t = yf.Ticker(ticker)
-        h = t.history(period="2d")
-        if len(h) < 2:
-            return None, None
-        prev = h["Close"].iloc[-2]
-        curr = h["Close"].iloc[-1]
-        change = round((curr - prev) / prev * 100, 2)
-        return round(curr, 2), change
-    except:
-        return None, None
+# ------------------------------------------------
+# 안내
+# ------------------------------------------------
+st.info("📌 무료 환경에서는 실시간 시세 대신 최근 종가 기반으로 표시됩니다.")
 
-# ------------------------------------
-# 테스트용 데이터
-# ------------------------------------
+# ------------------------------------------------
+# 데이터 (CSV 대체 가능)
+# ------------------------------------------------
 df = pd.DataFrame({
     "code": ["AAPL", "MSFT", "NVDA"],
     "name": ["애플", "마이크로소프트", "엔비디아"],
     "icon": ["🍎", "🪟", "🎮"],
+    "price": [190.2, 412.6, 720.4],   # 최근 종가 (예시)
+    "change": [1.2, -0.4, 2.8],       # 전일 대비 %
     "return_26": [120, 90, 180]
 })
 
-investment = st.number_input("투자금액", value=1_000_000, step=100_000)
+# ------------------------------------------------
+# 입력
+# ------------------------------------------------
+investment = st.number_input("💰 투자금액", value=1_000_000, step=100_000)
 
-# ------------------------------------
-# 출력
-# ------------------------------------
-st.subheader("⭐ 추천 종목 TOP 5 (실시간 시세)")
+# ------------------------------------------------
+# 출력 (한 화면)
+# ------------------------------------------------
+st.subheader("⭐ 추천 종목 TOP 5")
 
 for _, r in df.iterrows():
-    price, change = get_realtime_price(r["code"])
     profit = int(investment * r["return_26"] / 100)
     total = investment + profit
+    color = "green" if r["change"] >= 0 else "red"
 
     c1, c2, c3, c4 = st.columns([0.5, 3, 2, 2])
     c1.markdown(r["icon"])
     c2.markdown(f"**{r['code']} ({r['name']})**")
-
-    if price:
-        color = "green" if change >= 0 else "red"
-        c3.markdown(
-            f"<span style='color:{color}'>{price}$ ({change}%)</span>",
-            unsafe_allow_html=True
-        )
-    else:
-        c3.markdown("—")
-
+    c3.markdown(
+        f"<span style='color:{color}'>{r['price']}$ ({r['change']}%)</span>",
+        unsafe_allow_html=True
+    )
     c4.markdown(f"**{total:,}원**")
+
+# ------------------------------------------------
+# 산출 수식
+# ------------------------------------------------
+with st.expander("📐 산출 수식"):
+    st.markdown("""
+- 예상 수익금 = 투자금액 × (26년 수익률 ÷ 100)  
+- 예상 총 금액 = 투자금액 + 예상 수익금
+""")
+
+# ------------------------------------------------
+# 뉴스
+# ------------------------------------------------
+st.subheader("📰 관련 뉴스")
+
+for _, r in df.iterrows():
+    link = f"https://www.google.com/search?q={r['name']} 주식 뉴스"
+    st.markdown(f"- **{r['name']}** → [뉴스 보기]({link})")
