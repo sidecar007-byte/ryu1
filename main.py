@@ -3,7 +3,6 @@ st.title("*류지성의 첫 웹앱*!")
 st.write('안녕하세요! 반갑습니다. :)')
 st.write('초록색버튼따라가기!')
 st.button("버튼누르기")
-if st.button()
 def main():
     st.title("비밀번호 입력창 토글 예제")
 
@@ -30,6 +29,3 @@ def main():
                 st.success("✅ 인증되었습니다!")
             else:
                 st.error("❌ 비밀번호가 틀렸습니다.")
-
-if __name__ == '__main__':
-    main()
