@@ -32,5 +32,6 @@ if uploaded_file is not None:
 
         st.pyplot(fig)
     else:
-        st.warning("숫자형 컬럼이 2개 이상 필요
+        st.warning("숫자형 컬럼이 2개 이상 필요")
+        
 
