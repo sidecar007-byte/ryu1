@@ -20,7 +20,7 @@ category_mode = st.sidebar.radio(
 # API 키 및 서비스 ID 설정
 api_key = "9171f7ffd72f4ffcb62f"
 # 완제품은 I2790, 첨가물은 I1250 사용
-service_id = "I2790" if category_mode == "식품(완제품/원료)" else "I1250"
+service_id = "I1260" if category_mode == "식품(완제품/원료)" else "I1250"
 
 # [기능 2] 유형 드롭다운 목록
 if category_mode == "식품(완제품/원료)":
