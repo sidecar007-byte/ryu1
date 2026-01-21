@@ -54,9 +54,8 @@ if st.sidebar.button("데이터 분석 시작"):
             response = requests.get(url)
             
             # 응답 데이터 유효성 검사
-            if not response.text or response.text.startswith("<"):
-                st.error(f"❌ '{service_id}' 서비스 응답 오류. 권한 승인 여부를 확인하세요.")
-                st.stop()
+           if not response.text or response.text.startswith("<"):
+    st.error(f"❌ 서버 응답 내용: {response.text[:200]}") # 서버가 보내는 실제 에러 메시지 출력
 
             data = response.json()
             
