@@ -5,29 +5,29 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # 1. 페이지 설정
-st.set_page_config(page_title="식품 데이터 분석 대시보드", layout="wide")
-st.title("📊 식품 품목제조 보고 실시간 분석")
+st.set_page_config(page_title="식품 데이터 통합 분석", layout="wide")
+st.title("📊 식품(완제품/첨가물/원재료) 통합 분석 대시보드")
 
 # 2. 사이드바 설정
 st.sidebar.header("🔍 검색 및 분석 필터")
 
 category = st.sidebar.selectbox(
     "데이터 분류 선택",
-    ["식품첨가물 - I1250", "식품(완제품) - I2790", "식품원재료 - I0020"]
+    ["식품(완제품) - I2790", "식품첨가물 - I1250", "식품원재료 - I0020"]
 )
 
-# ID 매핑
-if "I1250" in category:
+# API ID 설정
+if "I2790" in category:
+    service_id = "I2790"
+    default_types = ["음료류", "과자류", "빵류", "소스"]
+elif "I1250" in category:
     service_id = "I1250"
     default_types = ["혼합제제", "천연향료", "합성향료"]
-elif "I2790" in category:
-    service_id = "I2790"
-    default_types = ["음료류", "과자류", "빵류"]
 else:
     service_id = "I0020"
-    default_types = ["식물성", "동물성"]
+    default_types = ["식물성", "동물성", "기타"]
 
-selected_types = st.sidebar.multiselect("분석할 식품유형 선택", options=default_types, default=default_types[:1])
+selected_types = st.sidebar.multiselect("유형 선택", options=default_types, default=default_types[:1])
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
@@ -40,32 +40,31 @@ api_key = "9171f7ffd72f4ffcb62f"
 
 if st.sidebar.button("데이터 분석 시작"):
     start_str = start_date.strftime('%Y%m%d')
+    # 명세서 기반 URL 구성 (샘플 이미지의 구조 준수)
     url = f"http://openapi.foodsafetykorea.go.kr/api/{api_key}/{service_id}/json/1/{limit}/CHNG_DT={start_str}"
 
     try:
-        with st.spinner("서버 연결 확인 중..."):
+        with st.spinner("데이터를 가져오는 중입니다..."):
             response = requests.get(url)
             
-            # [진단] 응답이 비어있거나 HTML(에러페이지)인 경우 체크
+            # [오류 해결 핵심] 응답 검증 로직
             if not response.text or response.text.startswith("<"):
-                st.error(f"❌ '{service_id}' 서비스 응답 오류 (Expecting value 에러 방지)")
-                st.warning("💡 원인: 해당 서비스 ID에 대한 '활용 신청'이 승인되지 않았을 가능성이 높습니다.")
-                st.info("식품안전나라 마이페이지에서 해당 ID의 승인 상태를 확인해 보세요.")
+                st.error(f"❌ '{service_id}' 서비스 응답 오류 (JSON 데이터 없음)")
+                st.warning("식품안전나라 마이페이지에서 해당 서비스 ID의 '활용 승인' 상태를 확인하세요.")
                 st.stop()
 
             data = response.json()
             
-            # [진단] API 키는 맞지만 내부 데이터 에러인 경우
+            # API 키 유효성 및 데이터 존재 여부 확인
             if service_id not in data:
-                error_msg = data.get("RESULT", {}).get("MSG", "알 수 없는 에러")
-                st.error(f"⚠️ 식약처 서버 메시지: {error_msg}")
+                st.error("⚠️ API 인증키 또는 서비스 ID에 권한이 없습니다.")
                 st.stop()
 
             rows = data[service_id].get("row", [])
             df = pd.DataFrame(rows)
             
             if not df.empty:
-                # 필터링 및 시각화 로직
+                # 날짜 및 유형 필터링
                 date_key = 'CHNG_DT' if 'CHNG_DT' in df.columns else 'PRMS_DT'
                 df['temp_date'] = df[date_key].str.replace(r'[^0-9]', '', regex=True).str[:8]
                 df = df[(df['temp_date'] >= start_str) & (df['temp_date'] <= end_date.strftime('%Y%m%d'))]
@@ -78,15 +77,18 @@ if st.sidebar.button("데이터 분석 시작"):
                     st.dataframe(df[['BSSH_NM', 'PRDLST_NM', 'PRDLST_DCNM', 'PRMS_DT']], use_container_width=True)
 
                     st.markdown("---")
+                    
+                    # 시각화 대시보드
                     c1, c2 = st.columns(2)
                     with c1:
-                        st.subheader("🍦 플레이버 분류")
+                        st.subheader("🍦 플레이버(Flavor) 분류")
                         flavors = ['딸기', '초코', '바닐라', '포도', '사과', '오렌지', '레몬', '민트']
-                        f_counts = [{'Flavor': k, 'Count': df['PRDLST_NM'].str.contains(k).sum()} for k in flavors]
-                        f_df = pd.DataFrame([f for f in f_counts if f['Count'] > 0])
+                        f_df = pd.DataFrame([{'맛': f, '건수': df['PRDLST_NM'].str.contains(f).sum()} for f in flavors])
+                        f_df = f_df[f_df['건수'] > 0]
                         if not f_df.empty:
-                            st.plotly_chart(px.pie(f_df, values='Count', names='Flavor', hole=0.4), use_container_width=True)
+                            st.plotly_chart(px.pie(f_df, values='건수', names='맛', hole=0.4), use_container_width=True)
                         st.caption(f"📅 기간: {start_date} ~ {end_date}")
+
                     with c2:
                         st.subheader("📊 유형별 비중 (%)")
                         t_counts = df['PRDLST_DCNM'].value_counts().reset_index()
@@ -96,7 +98,7 @@ if st.sidebar.button("데이터 분석 시작"):
                 else:
                     st.warning("🔎 조건에 맞는 데이터가 없습니다.")
             else:
-                st.info("데이터가 없습니다.")
+                st.info("조회된 데이터가 없습니다.")
                 
     except Exception as e:
         st.error(f"🔌 시스템 오류: {e}")
