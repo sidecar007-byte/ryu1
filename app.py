@@ -11,7 +11,7 @@ st.title("🔍 식품신제품검색 (식품첨가물 I1250 분석)")
 # 2. 사이드바 검색 옵션
 st.sidebar.header("🔍 검색 및 필터 옵션")
 
-# [신규 기능] 제품명/키워드 통합 검색창
+# 제품명/키워드 통합 검색창
 search_keyword = st.sidebar.text_input("제품명 또는 성분 검색 (예: 딸기, 포도, 제로)", "")
 
 # 식품안전나라 기준 표준 식품유형 리스트
@@ -44,6 +44,7 @@ limit = st.sidebar.slider("데이터 호출량", 200, 1000, 500)
 api_key = "9171f7ffd72f4ffcb62f"
 service_id = "I1250"
 
+# 3. 데이터 조회 및 시각화 로직
 if st.sidebar.button("신제품 검색 시작"):
     start_str = start_date.strftime('%Y%m%d')
     url = f"http://openapi.foodsafetykorea.go.kr/api/{api_key}/{service_id}/json/1/{limit}/CHNG_DT={start_str}"
@@ -67,7 +68,7 @@ if st.sidebar.button("신제품 검색 시작"):
                         df['temp_date'] = df[date_col].str.replace(r'[^0-9]', '', regex=True).str[:8]
                         df = df[(df['temp_date'] >= start_str) & (df['temp_date'] <= end_date.strftime('%Y%m%d'))]
                     
-                    # [핵심 로직 1] 제외 설정 적용
+                    # 제외 설정 적용
                     if exclude_flavor:
                         df = df[~df['PRDLST_DCNM'].str.contains('향료', na=False)]
                     if exclude_raw:
@@ -75,7 +76,7 @@ if st.sidebar.button("신제품 검색 시작"):
                     if exclude_mixed:
                         df = df[~df['PRDLST_DCNM'].str.contains('혼합제제', na=False)]
                     
-                    # [핵심 로직 2] 제품명 키워드 검색 (과일명 입력 시 전체 검색 효과)
+                    # 제품명 키워드 검색
                     if search_keyword:
                         df = df[df['PRDLST_NM'].str.contains(search_keyword, na=False)]
                     
@@ -84,4 +85,43 @@ if st.sidebar.button("신제품 검색 시작"):
                         df = df[df['PRDLST_DCNM'].str.contains('|'.join(selected_food_types), na=False)]
 
                     if not df.empty:
-                        st.subheader(f"📋 '{search_keyword if
+                        # [오류 해결] f-string 중괄호 문법을 안전하게 수정
+                        display_name = search_keyword if search_keyword else "전체"
+                        st.subheader(f"📋 '{display_name}' 검색 결과 (총 {len(df)}건)")
+                        
+                        cols = [c for c in ['BSSH_NM', 'PRDLST_NM', 'PRDLST_DCNM', date_col] if c in df.columns]
+                        st.dataframe(df[cols], use_container_width=True)
+
+                        st.markdown("---")
+                        
+                        # 속성 분석 대시보드
+                        l_chart, r_chart = st.columns(2)
+                        with l_chart:
+                            st.subheader(f"🎯 '{display_name}' 연관 속성 분석")
+                            attr_keywords = ['무설탕', '제로', '유기농', '고단백', '비건', '천연', '가공', '농축']
+                            fruits = ['딸기', '초코', '바닐라', '포도', '사과', '오렌지', '레몬', '민트', '복숭아', '블루베리']
+                            
+                            combined_keywords = list(set(attr_keywords + fruits))
+                            attr_data = [{'속성': k, '건수': df['PRDLST_NM'].str.contains(k).sum()} for k in combined_keywords]
+                            attr_df = pd.DataFrame([x for x in attr_data if x['건수'] > 0]).sort_values(by='건수', ascending=False)
+                            
+                            if not attr_df.empty:
+                                fig1 = px.bar(attr_df, x='속성', y='건수', color='속성', text_auto=True)
+                                st.plotly_chart(fig1, use_container_width=True)
+                            else:
+                                st.info("추출된 주요 속성이 없습니다.")
+                        
+                        with r_chart:
+                            st.subheader("📊 식품유형별 분포")
+                            type_counts = df['PRDLST_DCNM'].value_counts().reset_index()
+                            type_counts.columns = ['유형', '건수']
+                            fig2 = px.pie(type_counts, values='건수', names='유형', hole=0.4)
+                            st.plotly_chart(fig2, use_container_width=True)
+                    else:
+                        st.warning("🔎 검색 조건 및 필터에 맞는 제품이 없습니다.")
+                else:
+                    st.info("데이터가 존재하지 않습니다.")
+            else:
+                st.error("⚠️ API 응답 형식이 올바르지 않습니다.")
+    except Exception as e:
+        st.error(f"🔌 시스템 오류: {e}")
