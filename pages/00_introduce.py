@@ -1,114 +1,77 @@
-import streamlit as st
+import requests
+import pandas as pd
+from datetime import datetime, timedelta
 
-st.set_page_config(page_title="자기소개 게임", layout="centered")
-st.title("🎮 자기소개 게임: 나를 맞혀봐!")
+def get_food_report_final_format():
+    # 1. 기본 설정 (ID 11250 고정)
+    api_key = "9171f7ffd72f4ffcb62f"
+    service_id = "I1250"
+    file_type = "json"
+    
+    # 2. 날짜 설정 (최근 3개월)
+    today = datetime.now()
+    three_months_ago = (today - timedelta(days=90)).strftime('%Y%m%d')
+    
+    # API URL 구성 (CHNG_DT 인자 포함)
+    url = f"http://openapi.foodsafetykorea.go.kr/api/{api_key}/{service_id}/{file_type}/1/100/CHNG_DT={three_months_ago}"
 
-# ---------------------------------
-# 세션 초기화
-# ---------------------------------
-if "step" not in st.session_state:
-    st.session_state.step = 0
-    st.session_state.profile = {}
+    print(f"📂 작업명: 식품품목제조보고 최신화 목록 (최근 3개월)")
+    print(f"📅 조회 기준: {three_months_ago} 이후 변경 자료\n")
 
-# ---------------------------------
-# STEP 0: 시작
-# ---------------------------------
-if st.session_state.step == 0:
-    st.subheader("👋 환영합니다!")
-    st.write("간단한 게임을 통해 나만의 자기소개를 완성해보세요.")
+    try:
+        response = requests.get(url)
+        data = response.json()
+        
+        if service_id in data:
+            rows = data[service_id].get("row", [])
+            if not rows:
+                print("⚠️ 해당 기간 내 데이터가 없습니다.")
+                return
 
-    if st.button("게임 시작 ▶️"):
-        st.session_state.step = 1
-        st.rerun()
+            # 데이터프레임 생성
+            df = pd.DataFrame(rows)
 
-# ---------------------------------
-# STEP 1: 이름
-# ---------------------------------
-elif st.session_state.step == 1:
-    st.subheader("1️⃣ 이름을 입력하세요")
+            # 3. 요청하신 출력 형식에 맞춰 컬럼 매칭 및 이름 변경
+            # 명세서 변수명과 요청 한글명을 매핑합니다.
+            column_mapping = {
+                'LCNS_NO': '인허가번호',
+                'BSSH_NM': '업소명',
+                'PRDLST_REPORT_NO': '품목제조번호',
+                'PRMS_DT': '허가일자',
+                'PRDLST_NM': '제품명',
+                'PRDLST_DCNM': '유형',
+                'END_YN': '생산종료여부',
+                'HI_VLT_NETRT_FOD_YN': '고열량저영양식품여부',
+                'CHLD_PRO_FOD_QUALT_CERT_YN': '어린이기호식품품질인증여부',
+                'POG_DAYCNT': '유통/소비기한',
+                'LAST_UPDT_DTM': '최종수정일자',
+                'INDUTY_NM': '업종',
+                'QLT_MAINT_TERM_DAYCNT': '품질유지기한일수',
+                'USE_METHOD': '용법',
+                'USAGE': '용도'
+            }
 
-    name = st.text_input("이름")
+            # 존재하는 컬럼만 필터링하여 재정렬
+            available_cols = [col for col in column_mapping.keys() if col in df.columns]
+            final_df = df[available_cols].rename(columns=column_mapping)
 
-    if st.button("다음"):
-        if name:
-            st.session_state.profile["이름"] = name
-            st.session_state.step = 2
-            st.rerun()
+            # 4. 결과 출력 (가로로 길기 때문에 표 형식으로 출력)
+            pd.set_option('display.max_columns', None)
+            pd.set_option('display.width', 1000)
+            
+            print(f"✅ 총 {len(final_df)}건의 데이터를 출력합니다.")
+            print("-" * 150)
+            print(final_df.to_string(index=False))
+            print("-" * 150)
+
+            # 필요시 엑셀 저장
+            # final_df.to_excel("식품품목제조보고_최신화.xlsx", index=False)
+            
         else:
-            st.warning("이름을 입력해주세요!")
+            print("⚠️ API 응답에 해당 서비스 ID가 없습니다. (인증키 활성화 확인 필요)")
 
-# ---------------------------------
-# STEP 2: 성격
-# ---------------------------------
-elif st.session_state.step == 2:
-    st.subheader("2️⃣ 나의 성격은?")
+    except Exception as e:
+        print(f"❌ 오류 발생: {e}")
 
-    personality = st.radio(
-        "가장 가까운 것을 선택하세요",
-        ["🔥 열정형", "🧠 분석형", "🎨 창의형", "🤝 협력형"]
-    )
-
-    if st.button("다음"):
-        st.session_state.profile["성격"] = personality
-        st.session_state.step = 3
-        st.rerun()
-
-# ---------------------------------
-# STEP 3: 관심사
-# ---------------------------------
-elif st.session_state.step == 3:
-    st.subheader("3️⃣ 관심 있는 분야는?")
-
-    interest = st.selectbox(
-        "선택하세요",
-        ["💻 IT / 개발", "📈 투자 / 경제", "🎮 게임", "🎬 콘텐츠", "🎓 공부"]
-    )
-
-    if st.button("다음"):
-        st.session_state.profile["관심사"] = interest
-        st.session_state.step = 4
-        st.rerun()
-
-# ---------------------------------
-# STEP 4: 강점
-# ---------------------------------
-elif st.session_state.step == 4:
-    st.subheader("4️⃣ 나의 강점은?")
-
-    strength = st.multiselect(
-        "모두 선택 가능",
-        ["집중력", "끈기", "문제해결력", "소통능력", "빠른학습"]
-    )
-
-    if st.button("결과 보기"):
-        st.session_state.profile["강점"] = ", ".join(strength)
-        st.session_state.step = 5
-        st.rerun()
-
-# ---------------------------------
-# STEP 5: 결과
-# ---------------------------------
-elif st.session_state.step == 5:
-    st.subheader("🎉 나의 자기소개 카드")
-
-    p = st.session_state.profile
-
-    st.markdown(f"""
-### 🙋 이름
-**{p.get("이름")}**
-
-### 🧠 성격
-{p.get("성격")}
-
-### 💡 관심사
-{p.get("관심사")}
-
-### 💪 강점
-{p.get("강점")}
-""")
-
-    st.success("자기소개 완성! 🎊")
-
-    if st.button("🔄 다시 하기"):
-        st.session_state.clear()
-        st.rerun()
+if __name__ == "__main__":
+    get_food_report_final_format()
