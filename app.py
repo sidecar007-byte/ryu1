@@ -1,4 +1,4 @@
-너는 이코드나 수정해라 import streamlit as st
+import streamlit as st
 import pandas as pd
 import os
 import glob
