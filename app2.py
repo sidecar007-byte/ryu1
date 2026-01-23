@@ -16,6 +16,7 @@ def load_temperature_csv(file):
     df["date"] = pd.to_datetime(df["date"])
     return df
 
+
 # 기본 데이터 로드
 base_df = load_temperature_csv("ta_20260122174530.csv")
 
